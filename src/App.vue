@@ -1,15 +1,25 @@
 <template>
 
   <div>
+
+    <ScoreBoard :winCount="this.winCount" :loseCount="this.loseCount" />
+
     <template v-if="this.question">
       <h1 v-html="this.question"></h1>
 
       <template v-for="answer in this.answers" :key="answer">
-        <input type="radio" name="options" :value="answer" v-model="this.chosen_answer">
+        <input type="radio" name="options" :disabled="this.answerSubmitted" :value="answer" v-model="this.chosenAnswer">
         <label v-html="answer"></label><br>
       </template>
 
-      <button class="send" type="button" v-on:click="this.submitAnswer()">Send</button>
+      <button class="send" type="button" v-if="!this.answerSubmitted" v-on:click="this.submitAnswer()">Send</button>
+
+      <section class="result" v-if="this.answerSubmitted">
+        <h4 v-if="this.chosenAnswer == this.correctAnswer" v-html="'&#9989; Congratulations, the answer &quot;' + this.correctAnswer + '&quot; is correct.'"></h4>
+        <h4 v-else v-html="'&#10060; Sorry, you picked the wrong answer. The correct is &quot;' + this.correctAnswer + '&quot;.'"></h4>
+        <button class="send" type="button" v-on:click="this.getNewQuestion()">Next question</button>
+      </section>
+
     </template>
   </div>
 
@@ -17,25 +27,50 @@
 
 <script>
 
+import ScoreBoard from '@/components/ScoreBoard.vue'
+
 export default {
   name: 'App',
+  components: {
+    ScoreBoard
+  },
 
   data() {
     return {
       question: undefined,
       incorrectAnswers: [],
       correctAnswer: undefined,
-      chosen_answer: undefined
+      chosenAnswer: undefined,
+      answerSubmitted: false,
+      winCount: 0,
+      loseCount: 0
     }
   },
   methods: {
     submitAnswer() {
-      if(!this.chosen_answer) {
+      if (!this.chosenAnswer) {
         alert('Pick one options');
       } else {
-        if(this.chosen_answer == this.correctAnswer)
-          
+        this.answerSubmitted = true;
+        if (this.chosenAnswer == this.correctAnswer) {
+          this.winCount++;
+          localStorage.setItem("winCount", this.winCount);
+        } else {
+          this.loseCount++;
+          localStorage.setItem("loseCount", this.loseCount);
+        }
       }
+    },
+    getNewQuestion() {
+      this.answerSubmitted = false;
+      this.chosenAnswer = undefined;
+      this.question = undefined;
+
+      this.axios.get('https://opentdb.com/api.php?amount=1&category=18').then((response) => {
+        this.question = response.data.results[0].question;
+        this.incorrectAnswers = response.data.results[0].incorrect_answers;
+        this.correctAnswer = response.data.results[0].correct_answer;
+      })
     }
   },
   computed: {
@@ -47,12 +82,9 @@ export default {
     }
   },
   created() {
-    this.axios.get('https://opentdb.com/api.php?amount=1&category=18').then((response) => {
-      this.question = response.data.results[0].question;
-      this.incorrectAnswers = response.data.results[0].incorrect_answers;
-      this.correctAnswer = response.data.results[0].correct_answer;
-
-    })
+    this.getNewQuestion();
+    this.winCount = localStorage.getItem("winCount") == null ? 0 : localStorage.getItem("winCount");
+    this.loseCount = localStorage.getItem("loseCount") == null ? 0 : localStorage.getItem("loseCount");
   }
 }
 
